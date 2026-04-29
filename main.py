@@ -250,3 +250,45 @@ def compile_with_solcx(contract_name: str = "GhostInu") -> CompileResult:
 
 def compile_contract(contract_name: str = "GhostInu") -> CompileResult:
     res = try_load_hardhat_artifact(contract_name=contract_name)
+    if res is not None:
+        return res
+    return compile_with_solcx(contract_name=contract_name)
+
+
+# -----------------------------
+# Web3 helpers
+# -----------------------------
+
+class ChainInfo(BaseModel):
+    chain_id: int
+    latest_block: int
+    client_version: str
+
+
+class DeployParams(BaseModel):
+    admin: str
+    guardian: str
+    addressA: str
+    addressB: str
+    addressC: str
+    cap: int
+    note: str
+
+
+class DeployReceipt(BaseModel):
+    tx_hash: str
+    contract_address: str
+    chain_id: int
+    deployed_at: str
+    constructor: DeployParams
+    artifact: CompileResult
+    aux_hex: Dict[str, str]
+
+
+def make_web3(rpc_url: str) -> Web3:
+    if not rpc_url:
+        raise ValueError("RPC URL is empty. Set RPC_URL or BASE_RPC_URL.")
+    w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 30}))
+    if not w3.is_connected():
+        raise RuntimeError("Unable to connect to RPC.")
+    return w3
