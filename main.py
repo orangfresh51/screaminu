@@ -712,3 +712,45 @@ def make_app() -> FastAPI:
         c = build_contract(w3, artifact, address=body.address)
         to = ensure_checksum(body.to)
         if body.amount <= 0:
+            raise HTTPException(status_code=400, detail="amount must be > 0")
+        return _build_call_tx(w3, c, body.from_address, c.functions.mintTo(to, int(body.amount)))
+
+    @app.post("/tx/pause", response_model=TxBuildOut)
+    async def tx_pause(body: PauseIn = Body(...)):
+        w3 = make_web3(body.rpc_url)
+        artifact = compile_contract("GhostInu")
+        c = build_contract(w3, artifact, address=body.address)
+        if body.action == "pause":
+            call = c.functions.pause()
+        else:
+            call = c.functions.unpause()
+        return _build_call_tx(w3, c, body.from_address, call)
+
+    @app.post("/tx/batchTransfer", response_model=TxBuildOut)
+    async def tx_batch_transfer(body: BatchTransferIn = Body(...)):
+        w3 = make_web3(body.rpc_url)
+        artifact = compile_contract("GhostInu")
+        c = build_contract(w3, artifact, address=body.address)
+        if len(body.recipients) == 0:
+            raise HTTPException(status_code=400, detail="recipients empty")
+        if len(body.recipients) != len(body.amounts):
+            raise HTTPException(status_code=400, detail="recipients/amounts length mismatch")
+        recipients = [ensure_checksum(a) for a in body.recipients]
+        amounts = [int(x) for x in body.amounts]
+        if any(x < 0 for x in amounts):
+            raise HTTPException(status_code=400, detail="negative amount not allowed")
+        return _build_call_tx(w3, c, body.from_address, c.functions.batchTransfer(recipients, amounts))
+
+    return app
+
+
+app = make_app()
+
+
+# -----------------------------
+# CLI
+# -----------------------------
+
+def _print_banner():
+    txt = Text()
+    txt.append("screaminu", style="bold white")
