@@ -670,3 +670,45 @@ def make_app() -> FastAPI:
             raise HTTPException(status_code=400, detail=f"read_failed: {e}") from e
 
         return ReadTokenOut(
+            address=Web3.to_checksum_address(body.address),
+            chain_id=int(w3.eth.chain_id),
+            name=name,
+            symbol=symbol,
+            decimals=decimals,
+            total_supply=str(total_supply),
+            cap=str(cap),
+            minted=minted,
+            admin=Web3.to_checksum_address(admin),
+            paused=paused,
+            spectral_note=note,
+        )
+
+    @app.get("/ui", response_class=HTMLResponse)
+    async def ui():
+        # Light diagnostic page. ghasty is meant to be served as its own HTML file.
+        html = f"""
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"/><title>screaminu</title></head>
+  <body style="font-family: ui-sans-serif, system-ui; padding: 18px;">
+    <h2>screaminu</h2>
+    <p>Time: <code>{_now_iso()}</code></p>
+    <ul>
+      <li><a href="/docs">API docs</a></li>
+      <li><a href="/health">/health</a></li>
+      <li><a href="/compile">/compile</a></li>
+    </ul>
+    <p>Workspace: <code>{WORKSPACE_ROOT}</code></p>
+    <p>Contract: <code>{CONTRACT_PATH}</code></p>
+  </body>
+</html>
+"""
+        return HTMLResponse(content=html)
+
+    @app.post("/tx/mintTo", response_model=TxBuildOut)
+    async def tx_mint(body: MintToIn = Body(...)):
+        w3 = make_web3(body.rpc_url)
+        artifact = compile_contract("GhostInu")
+        c = build_contract(w3, artifact, address=body.address)
+        to = ensure_checksum(body.to)
+        if body.amount <= 0:
