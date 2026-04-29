@@ -166,3 +166,45 @@ def try_load_hardhat_artifact(contract_name: str = "GhostInu") -> Optional[Compi
     if not os.path.isdir(ARTIFACTS_DIR):
         return None
 
+    # Hardhat artifact path is typically:
+    # artifacts/contracts/GhostInu.sol/GhostInu.json
+    candidate = os.path.join(ARTIFACTS_DIR, "contracts", "GhostInu.sol", f"{contract_name}.json")
+    if not os.path.isfile(candidate):
+        return None
+
+    with open(candidate, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    abi = data.get("abi")
+    bytecode = data.get("bytecode")
+    deployed = data.get("deployedBytecode")
+    if not abi or not isinstance(abi, list) or not isinstance(bytecode, str) or not bytecode.startswith("0x"):
+        return None
+
+    return CompileResult(
+        compiler="hardhat-artifact",
+        contract_name=contract_name,
+        abi=abi,
+        bytecode=bytecode,
+        deployed_bytecode=deployed if isinstance(deployed, str) else None,
+        source_hash=file_sha256(CONTRACT_PATH) if os.path.isfile(CONTRACT_PATH) else "missing",
+    )
+
+
+def compile_with_solcx(contract_name: str = "GhostInu") -> CompileResult:
+    """
+    Fallback compiler using python-solcx if Hardhat artifacts aren't present.
+    It's optional: only used when artifact loading fails.
+    """
+    try:
+        import solcx  # type: ignore
+    except Exception as e:
+        raise RuntimeError(
+            "Hardhat artifacts not found and python-solcx not installed. "
+            "Run `npx hardhat compile` or `pip install py-solc-x`."
+        ) from e
+
+    if not os.path.isfile(CONTRACT_PATH):
+        raise RuntimeError(f"Missing Solidity file: {CONTRACT_PATH}")
+
+    with open(CONTRACT_PATH, "r", encoding="utf-8") as f:
