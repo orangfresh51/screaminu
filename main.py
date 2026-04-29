@@ -460,3 +460,45 @@ def deploy_ghostinu(
     if not addr:
         raise RuntimeError("Deployment did not yield a contract address.")
 
+    return DeployReceipt(
+        tx_hash=tx_hex,
+        contract_address=Web3.to_checksum_address(addr),
+        chain_id=int(w3.eth.chain_id),
+        deployed_at=_now_iso(),
+        constructor=params,
+        artifact=artifact,
+        aux_hex=aux_hex,
+    )
+
+
+# -----------------------------
+# FastAPI models
+# -----------------------------
+
+class Health(BaseModel):
+    ok: bool
+    time: str
+    workspace: str
+    contract_path: str
+
+
+class ErrorOut(BaseModel):
+    error: str
+    detail: Optional[str] = None
+
+
+class EncodePermitIn(BaseModel):
+    owner: str
+    spender: str
+    value: int
+    deadline: int
+    v: int
+    r: str
+    s: str
+
+
+class ReadTokenOut(BaseModel):
+    address: str
+    chain_id: int
+    name: str
+    symbol: str
