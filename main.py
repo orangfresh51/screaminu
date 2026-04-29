@@ -82,3 +82,45 @@ PHRASE_BANK = [
     "the floorboards remember",
     "hollow chorus, clean edges",
     "soft knives, bright hallway",
+    "a candle made of snow",
+    "the window blinks first",
+]
+
+
+def _now_iso() -> str:
+    return dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
+def random_spectral_note() -> str:
+    a = secrets.choice(PHRASE_BANK)
+    b = secrets.choice(PHRASE_BANK)
+    c = secrets.choice(PHRASE_BANK)
+    extra = secrets.token_hex(6)
+    # Avoid identical lines by shaping a sentence
+    return f"{a}; {b}; {c} / {extra}"
+
+
+def random_bytes32_hex() -> str:
+    # 32 bytes => 64 hex chars
+    return "0x" + secrets.token_hex(32)
+
+
+def random_uint256(min_v: int, max_v: int) -> int:
+    if min_v > max_v:
+        min_v, max_v = max_v, min_v
+    span = max_v - min_v + 1
+    return min_v + secrets.randbelow(span)
+
+
+def random_token_cap(decimals: int = 18) -> int:
+    # Pick a cap in a plausible meme-token range, but not a fixed template number.
+    whole = random_uint256(10_000_000, 9_999_999_999)
+    return whole * (10**decimals)
+
+
+def checksum_addr_from_bytes(b: bytes) -> str:
+    if len(b) != 20:
+        raise ValueError("need 20 bytes")
+    return Web3.to_checksum_address(b.hex())
+
+
