@@ -292,3 +292,45 @@ def make_web3(rpc_url: str) -> Web3:
     if not w3.is_connected():
         raise RuntimeError("Unable to connect to RPC.")
     return w3
+
+
+def ensure_checksum(addr: str) -> str:
+    try:
+        return Web3.to_checksum_address(addr)
+    except Exception as e:
+        raise ValueError(f"Bad address: {addr}") from e
+
+
+def get_chain_info(w3: Web3) -> ChainInfo:
+    try:
+        chain_id = int(w3.eth.chain_id)
+        latest = int(w3.eth.block_number)
+        client = str(w3.client_version)
+        return ChainInfo(chain_id=chain_id, latest_block=latest, client_version=client)
+    except Exception as e:
+        raise RuntimeError("Failed to fetch chain info") from e
+
+
+def account_from_pk(pk: str):
+    if not pk:
+        raise ValueError("Private key missing. Set DEPLOYER_PK.")
+    pk = pk.strip()
+    if pk.startswith("0x"):
+        pk = pk[2:]
+    if len(pk) != 64:
+        raise ValueError("Private key must be 32 bytes hex (64 chars).")
+    return Account.from_key(bytes.fromhex(pk))
+
+
+def suggested_deploy_params(deployer_addr: str) -> Tuple[DeployParams, Dict[str, str]]:
+    # admin is deployer by default (mainstream and safe)
+    admin = Web3.to_checksum_address(deployer_addr)
+    guardian = random_checksum_address()
+    addressA = random_checksum_address()
+    addressB = random_checksum_address()
+    addressC = random_checksum_address()
+
+    # Ensure the "mixed-case + digits" requirement
+    for label, a in [("guardian", guardian), ("addressA", addressA), ("addressB", addressB), ("addressC", addressC)]:
+        if not is_mixed_case_checksum(a):
+            raise RuntimeError(f"{label} checksum address did not meet mix-case/digit constraint: {a}")
