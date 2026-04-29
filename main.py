@@ -544,3 +544,45 @@ class TxBuildIn(BaseModel):
     from_address: str
 
 
+class MintToIn(TxBuildIn):
+    to: str
+    amount: int
+
+
+class PauseIn(TxBuildIn):
+    action: Literal["pause", "unpause"]
+
+
+class BatchTransferIn(TxBuildIn):
+    recipients: List[str]
+    amounts: List[int]
+
+
+def _build_call_tx(w3: Web3, contract, from_address: str, fn_call) -> TxBuildOut:
+    from_address = ensure_checksum(from_address)
+    tx = fn_call.build_transaction(
+        {
+            "from": from_address,
+            "nonce": int(w3.eth.get_transaction_count(from_address)),
+            "chainId": int(w3.eth.chain_id),
+            "value": 0,
+        }
+    )
+    data = tx.get("data") or ""
+    to = tx.get("to") or contract.address
+    return TxBuildOut(
+        to=Web3.to_checksum_address(to),
+        data=str(data),
+        value=str(int(tx.get("value") or 0)),
+        hints={
+            "gas_estimate_supported": True,
+            "nonce": int(tx["nonce"]),
+            "chain_id": int(tx["chainId"]),
+        },
+    )
+
+
+def make_app() -> FastAPI:
+    app = FastAPI(title="screaminu", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
+    app.add_middleware(
+        CORSMiddleware,
