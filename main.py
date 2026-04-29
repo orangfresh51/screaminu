@@ -418,3 +418,45 @@ def deploy_ghostinu(
         {
             "from": deployer,
             "nonce": nonce,
+            "chainId": int(w3.eth.chain_id),
+        }
+    )
+
+    if gas_limit is not None:
+        tx["gas"] = int(gas_limit)
+    else:
+        try:
+            tx["gas"] = int(w3.eth.estimate_gas(tx)) + 50_000
+        except Exception:
+            tx["gas"] = 6_000_000
+
+    # EIP-1559 fee fields (preferred on mainnets)
+    base_fee = None
+    try:
+        pending_block = w3.eth.get_block("pending")
+        base_fee = pending_block.get("baseFeePerGas")
+    except Exception:
+        base_fee = None
+
+    if base_fee is not None:
+        max_fee = max_fee_gwei if max_fee_gwei is not None else float(os.getenv("MAX_FEE_GWEI", "0") or 0)
+        prio_fee = priority_fee_gwei if priority_fee_gwei is not None else float(os.getenv("PRIORITY_FEE_GWEI", "0") or 0)
+        if max_fee <= 0:
+            max_fee = 30.0
+        if prio_fee <= 0:
+            prio_fee = 1.5
+        tx["maxFeePerGas"] = int(Web3.to_wei(max_fee, "gwei"))
+        tx["maxPriorityFeePerGas"] = int(Web3.to_wei(prio_fee, "gwei"))
+    else:
+        gas_price = w3.eth.gas_price
+        tx["gasPrice"] = int(gas_price)
+
+    signed = Account.sign_transaction(tx, acct.key)
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    tx_hex = tx_hash.hex()
+
+    receipt = wait_for_receipt(w3, tx_hex)
+    addr = receipt.get("contractAddress")
+    if not addr:
+        raise RuntimeError("Deployment did not yield a contract address.")
+
