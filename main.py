@@ -628,3 +628,45 @@ def make_app() -> FastAPI:
     async def deploy(body: DeployIn = Body(...)):
         if not body.rpc_url:
             raise HTTPException(status_code=400, detail="rpc_url missing")
+        if not body.private_key:
+            raise HTTPException(status_code=400, detail="private_key missing")
+
+        try:
+            receipt = await asyncio.to_thread(
+                deploy_ghostinu,
+                body.rpc_url,
+                body.private_key,
+                body.params,
+                body.gas_limit,
+                body.max_fee_gwei,
+                body.priority_fee_gwei,
+            )
+            return receipt
+        except ContractLogicError as e:
+            raise HTTPException(status_code=400, detail=f"contract_logic_error: {e}") from e
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/token/read", response_model=ReadTokenOut)
+    async def token_read(body: ContractAddressIn = Body(...)):
+        w3 = make_web3(body.rpc_url)
+        artifact = compile_contract("GhostInu")
+        c = build_contract(w3, artifact, address=body.address)
+
+        def _call(fn: str):
+            return getattr(c.functions, fn)().call()
+
+        try:
+            name = _call("name")
+            symbol = _call("symbol")
+            decimals = int(_call("decimals"))
+            total_supply = int(_call("totalSupply"))
+            cap = int(_call("CAP"))
+            minted = bool(_call("minted"))
+            admin = str(_call("admin"))
+            paused = bool(_call("paused"))
+            note = str(_call("spectralNote"))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"read_failed: {e}") from e
+
+        return ReadTokenOut(
