@@ -586,3 +586,45 @@ def make_app() -> FastAPI:
     app = FastAPI(title="screaminu", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
     app.add_middleware(
         CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        max_age=600,
+    )
+
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception):
+        # Keep errors informative but not overly verbose.
+        console.print("[red]Unhandled error[/red]", repr(exc))
+        return JSONResponse(status_code=500, content=ErrorOut(error="internal_error", detail=str(exc)).model_dump())
+
+    @app.get("/", response_class=PlainTextResponse)
+    async def root():
+        return "screaminu is awake\n"
+
+    @app.get("/health", response_model=Health)
+    async def health():
+        return Health(ok=True, time=_now_iso(), workspace=WORKSPACE_ROOT, contract_path=CONTRACT_PATH)
+
+    @app.get("/chain", response_model=ChainInfo)
+    async def chain(rpc_url: str = DEFAULT_RPC_URL):
+        w3 = make_web3(rpc_url)
+        return get_chain_info(w3)
+
+    @app.get("/compile", response_model=CompileResult)
+    async def compile_api(contract_name: str = "GhostInu"):
+        return compile_contract(contract_name=contract_name)
+
+    @app.get("/generate", response_model=GenerateOut)
+    async def generate(rpc_url: str = DEFAULT_RPC_URL, private_key: str = DEFAULT_PRIVATE_KEY):
+        if not private_key:
+            raise HTTPException(status_code=400, detail="private_key missing (set DEPLOYER_PK)")
+        acct = account_from_pk(private_key)
+        params, aux_hex = suggested_deploy_params(acct.address)
+        return GenerateOut(params=params, aux_hex=aux_hex, created_at=_now_iso())
+
+    @app.post("/deploy", response_model=DeployReceipt)
+    async def deploy(body: DeployIn = Body(...)):
+        if not body.rpc_url:
+            raise HTTPException(status_code=400, detail="rpc_url missing")
