@@ -334,3 +334,45 @@ def suggested_deploy_params(deployer_addr: str) -> Tuple[DeployParams, Dict[str,
     for label, a in [("guardian", guardian), ("addressA", addressA), ("addressB", addressB), ("addressC", addressC)]:
         if not is_mixed_case_checksum(a):
             raise RuntimeError(f"{label} checksum address did not meet mix-case/digit constraint: {a}")
+
+    cap = random_token_cap(18)
+    note = random_spectral_note()
+
+    aux_hex = {
+        "salt_0": random_bytes32_hex(),
+        "salt_1": random_bytes32_hex(),
+        "salt_2": random_bytes32_hex(),
+        "nonceMask": "0x" + secrets.token_hex(8),
+    }
+    return (
+        DeployParams(
+            admin=admin,
+            guardian=guardian,
+            addressA=addressA,
+            addressB=addressB,
+            addressC=addressC,
+            cap=cap,
+            note=note,
+        ),
+        aux_hex,
+    )
+
+
+def build_contract(w3: Web3, artifact: CompileResult, address: Optional[str] = None):
+    if address:
+        return w3.eth.contract(address=ensure_checksum(address), abi=artifact.abi)
+    return w3.eth.contract(abi=artifact.abi, bytecode=artifact.bytecode)
+
+
+def wait_for_receipt(w3: Web3, tx_hash: str, timeout_s: int = 300) -> dict:
+    deadline = time.time() + timeout_s
+    while True:
+        try:
+            r = w3.eth.get_transaction_receipt(tx_hash)
+            if r is not None:
+                return dict(r)
+        except Exception:
+            pass
+        if time.time() >= deadline:
+            raise TimeoutError("Timed out waiting for tx receipt.")
+        time.sleep(2.0)
