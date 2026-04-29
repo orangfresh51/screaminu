@@ -124,3 +124,45 @@ def checksum_addr_from_bytes(b: bytes) -> str:
     return Web3.to_checksum_address(b.hex())
 
 
+def random_checksum_address() -> str:
+    # Uses eth-account for strong randomness and checksum formatting
+    acct = Account.create(secrets.token_hex(32))
+    return Web3.to_checksum_address(acct.address)
+
+
+def is_mixed_case_checksum(a: str) -> bool:
+    if not re.fullmatch(r"0x[0-9a-fA-F]{40}", a or ""):
+        return False
+    body = a[2:]
+    return any(c.islower() for c in body) and any(c.isupper() for c in body) and any(c.isdigit() for c in body)
+
+
+# -----------------------------
+# Solidity compilation helpers
+# -----------------------------
+
+class CompileResult(BaseModel):
+    compiler: str
+    contract_name: str
+    abi: list
+    bytecode: str
+    deployed_bytecode: Optional[str] = None
+    source_hash: str
+
+
+def file_sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 128), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def try_load_hardhat_artifact(contract_name: str = "GhostInu") -> Optional[CompileResult]:
+    """
+    Attempts to load Hardhat artifacts if the user has compiled already.
+    This keeps the app fast and avoids bundling solc in Python.
+    """
+    if not os.path.isdir(ARTIFACTS_DIR):
+        return None
+
