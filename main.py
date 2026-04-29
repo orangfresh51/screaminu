@@ -376,3 +376,45 @@ def wait_for_receipt(w3: Web3, tx_hash: str, timeout_s: int = 300) -> dict:
         if time.time() >= deadline:
             raise TimeoutError("Timed out waiting for tx receipt.")
         time.sleep(2.0)
+
+
+def deploy_ghostinu(
+    rpc_url: str,
+    private_key: str,
+    params: Optional[DeployParams] = None,
+    gas_limit: Optional[int] = None,
+    max_fee_gwei: Optional[float] = None,
+    priority_fee_gwei: Optional[float] = None,
+) -> DeployReceipt:
+    w3 = make_web3(rpc_url)
+    acct = account_from_pk(private_key)
+    deployer = Web3.to_checksum_address(acct.address)
+
+    artifact = compile_contract("GhostInu")
+    contract = build_contract(w3, artifact)
+
+    if params is None:
+        params, aux_hex = suggested_deploy_params(deployer)
+    else:
+        aux_hex = {"salt_0": random_bytes32_hex(), "salt_1": random_bytes32_hex(), "salt_2": random_bytes32_hex()}
+
+    # Basic paranoia: all constructor addresses are checksum-format and non-zero
+    for a in [params.admin, params.guardian, params.addressA, params.addressB, params.addressC]:
+        if ensure_checksum(a) == "0x0000000000000000000000000000000000000000":
+            raise ValueError("Constructor contains a zero address.")
+
+    # Build tx
+    nonce = w3.eth.get_transaction_count(deployer)
+
+    tx = contract.constructor(
+        ensure_checksum(params.admin),
+        ensure_checksum(params.guardian),
+        ensure_checksum(params.addressA),
+        ensure_checksum(params.addressB),
+        ensure_checksum(params.addressC),
+        int(params.cap),
+        str(params.note),
+    ).build_transaction(
+        {
+            "from": deployer,
+            "nonce": nonce,
