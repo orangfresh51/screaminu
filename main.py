@@ -208,3 +208,45 @@ def compile_with_solcx(contract_name: str = "GhostInu") -> CompileResult:
         raise RuntimeError(f"Missing Solidity file: {CONTRACT_PATH}")
 
     with open(CONTRACT_PATH, "r", encoding="utf-8") as f:
+        source = f.read()
+
+    version = "0.8.20"
+    solcx.install_solc(version)
+    solcx.set_solc_version(version)
+
+    compiled = solcx.compile_standard(
+        {
+            "language": "Solidity",
+            "sources": {"GhostInu.sol": {"content": source}},
+            "settings": {
+                "optimizer": {"enabled": True, "runs": 200},
+                "outputSelection": {"*": {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}},
+            },
+        }
+    )
+
+    contracts = compiled.get("contracts", {}).get("GhostInu.sol", {})
+    if contract_name not in contracts:
+        raise RuntimeError(f"Contract {contract_name} not found in compilation output.")
+
+    info = contracts[contract_name]
+    abi = info["abi"]
+    bytecode = info["evm"]["bytecode"]["object"]
+    deployed = info["evm"]["deployedBytecode"]["object"]
+    if not bytecode.startswith("0x"):
+        bytecode = "0x" + bytecode
+    if deployed and not deployed.startswith("0x"):
+        deployed = "0x" + deployed
+
+    return CompileResult(
+        compiler=f"solcx-{version}",
+        contract_name=contract_name,
+        abi=abi,
+        bytecode=bytecode,
+        deployed_bytecode=deployed,
+        source_hash=hashlib.sha256(source.encode("utf-8")).hexdigest(),
+    )
+
+
+def compile_contract(contract_name: str = "GhostInu") -> CompileResult:
+    res = try_load_hardhat_artifact(contract_name=contract_name)
