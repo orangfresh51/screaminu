@@ -502,3 +502,45 @@ class ReadTokenOut(BaseModel):
     chain_id: int
     name: str
     symbol: str
+    decimals: int
+    total_supply: str
+    cap: str
+    minted: bool
+    admin: str
+    paused: bool
+    spectral_note: str
+
+
+class TxBuildOut(BaseModel):
+    to: str
+    data: str
+    value: str = "0"
+    hints: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GenerateOut(BaseModel):
+    params: DeployParams
+    aux_hex: Dict[str, str]
+    created_at: str
+
+
+class DeployIn(BaseModel):
+    rpc_url: str = Field(default_factory=lambda: DEFAULT_RPC_URL)
+    private_key: str = Field(default_factory=lambda: DEFAULT_PRIVATE_KEY)
+    params: Optional[DeployParams] = None
+    gas_limit: Optional[int] = None
+    max_fee_gwei: Optional[float] = None
+    priority_fee_gwei: Optional[float] = None
+
+
+class ContractAddressIn(BaseModel):
+    rpc_url: str = Field(default_factory=lambda: DEFAULT_RPC_URL)
+    address: str
+
+
+class TxBuildIn(BaseModel):
+    rpc_url: str = Field(default_factory=lambda: DEFAULT_RPC_URL)
+    address: str
+    from_address: str
+
+
