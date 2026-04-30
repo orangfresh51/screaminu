@@ -754,3 +754,45 @@ app = make_app()
 def _print_banner():
     txt = Text()
     txt.append("screaminu", style="bold white")
+    txt.append("  ")
+    txt.append("ghost X scare bot", style="magenta")
+    console.print(txt)
+
+
+def _help() -> str:
+    return textwrap.dedent(
+        f"""
+        Usage:
+          python screaminu.py serve [--host H] [--port P]
+          python screaminu.py chain --rpc URL
+          python screaminu.py compile
+          python screaminu.py generate --pk HEXKEY
+          python screaminu.py deploy --rpc URL --pk HEXKEY [--max-fee-gwei N] [--priority-fee-gwei N] [--gas N]
+          python screaminu.py read --rpc URL --address 0x...
+
+        Environment:
+          RPC_URL / BASE_RPC_URL
+          DEPLOYER_PK / BASE_DEPLOYER_PK
+
+        Files:
+          {CONTRACT_PATH}
+          {HARDHAT_CONFIG}
+        """
+    ).strip()
+
+
+def _arg(flag: str, default: Optional[str] = None) -> Optional[str]:
+    if flag not in sys.argv:
+        return default
+    i = sys.argv.index(flag)
+    if i + 1 >= len(sys.argv):
+        return default
+    return sys.argv[i + 1]
+
+
+def _arg_int(flag: str, default: Optional[int] = None) -> Optional[int]:
+    v = _arg(flag)
+    if v is None:
+        return default
+    try:
+        return int(v)
