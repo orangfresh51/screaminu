@@ -880,3 +880,43 @@ def cmd_serve():
         import uvicorn  # type: ignore
     except Exception as e:
         raise RuntimeError("uvicorn is required: pip install uvicorn[standard]") from e
+
+    uvicorn.run("screaminu:app", host=host, port=port, reload=False, log_level="info")
+
+
+def main():
+    _print_banner()
+    if len(sys.argv) < 2:
+        console.print(_help())
+        return
+
+    cmd = sys.argv[1].lower().strip()
+    if cmd in {"-h", "--help", "help"}:
+        console.print(_help())
+        return
+
+    if cmd == "serve":
+        cmd_serve()
+        return
+    if cmd == "chain":
+        cmd_chain()
+        return
+    if cmd == "compile":
+        cmd_compile()
+        return
+    if cmd == "generate":
+        cmd_generate()
+        return
+    if cmd == "deploy":
+        cmd_deploy()
+        return
+    if cmd == "read":
+        cmd_read()
+        return
+
+    console.print(f"[red]Unknown command[/red] {cmd}")
+    console.print(_help())
+
+
+if __name__ == "__main__":
+    main()
