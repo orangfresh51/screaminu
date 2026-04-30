@@ -838,3 +838,45 @@ def cmd_deploy():
     gas = _arg_int("--gas")
     max_fee = _arg_float("--max-fee-gwei")
     prio_fee = _arg_float("--priority-fee-gwei")
+    receipt = deploy_ghostinu(
+        rpc_url=rpc,
+        private_key=pk,
+        params=None,
+        gas_limit=gas,
+        max_fee_gwei=max_fee,
+        priority_fee_gwei=prio_fee,
+    )
+    console.print("[bold green]Deployed[/bold green]")
+    console.print(Pretty(receipt.model_dump()))
+
+
+def cmd_read():
+    rpc = _arg("--rpc", DEFAULT_RPC_URL) or ""
+    addr = _arg("--address", "") or ""
+    w3 = make_web3(rpc)
+    artifact = compile_contract("GhostInu")
+    c = build_contract(w3, artifact, address=addr)
+    out = {
+        "chainId": int(w3.eth.chain_id),
+        "address": Web3.to_checksum_address(addr),
+        "name": c.functions.name().call(),
+        "symbol": c.functions.symbol().call(),
+        "decimals": int(c.functions.decimals().call()),
+        "totalSupply": str(int(c.functions.totalSupply().call())),
+        "CAP": str(int(c.functions.CAP().call())),
+        "minted": bool(c.functions.minted().call()),
+        "admin": Web3.to_checksum_address(c.functions.admin().call()),
+        "paused": bool(c.functions.paused().call()),
+        "spectralNote": c.functions.spectralNote().call(),
+    }
+    console.print(Pretty(out))
+
+
+def cmd_serve():
+    host = _arg("--host", DEFAULT_HOST) or DEFAULT_HOST
+    port = _arg_int("--port", DEFAULT_PORT) or DEFAULT_PORT
+
+    try:
+        import uvicorn  # type: ignore
+    except Exception as e:
+        raise RuntimeError("uvicorn is required: pip install uvicorn[standard]") from e
