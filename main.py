@@ -796,3 +796,45 @@ def _arg_int(flag: str, default: Optional[int] = None) -> Optional[int]:
         return default
     try:
         return int(v)
+    except ValueError:
+        return default
+
+
+def _arg_float(flag: str, default: Optional[float] = None) -> Optional[float]:
+    v = _arg(flag)
+    if v is None:
+        return default
+    try:
+        return float(v)
+    except ValueError:
+        return default
+
+
+def cmd_chain():
+    rpc = _arg("--rpc", DEFAULT_RPC_URL) or ""
+    w3 = make_web3(rpc)
+    info = get_chain_info(w3)
+    console.print(Pretty(info.model_dump()))
+
+
+def cmd_compile():
+    art = compile_contract("GhostInu")
+    console.print(Pretty(art.model_dump()))
+
+
+def cmd_generate():
+    pk = _arg("--pk", DEFAULT_PRIVATE_KEY) or ""
+    acct = account_from_pk(pk)
+    params, aux_hex = suggested_deploy_params(acct.address)
+    console.print("[bold]Constructor params[/bold]")
+    console.print(Pretty(params.model_dump()))
+    console.print("[bold]Extra hex[/bold]")
+    console.print(Pretty(aux_hex))
+
+
+def cmd_deploy():
+    rpc = _arg("--rpc", DEFAULT_RPC_URL) or ""
+    pk = _arg("--pk", DEFAULT_PRIVATE_KEY) or ""
+    gas = _arg_int("--gas")
+    max_fee = _arg_float("--max-fee-gwei")
+    prio_fee = _arg_float("--priority-fee-gwei")
